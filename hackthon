@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CachePulse | Cloud Cache Efficiency</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f3f6fc;color:#17233f}
+header{background:#172653;color:white;padding:25px 6%}
+header h1{margin:0 0 8px;font-size:32px}
+header p{margin:0;color:#dbe5ff}
+main{max-width:1450px;margin:auto;padding:28px 24px}
+.hero{background:linear-gradient(120deg,#4934ce,#2367f1);color:white;padding:30px;border-radius:20px;margin-bottom:24px}
+.hero h2{margin:0 0 12px}
+.hero p{line-height:1.6;margin:0}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.card{background:white;border-radius:18px;padding:22px;box-shadow:0 5px 22px #15254b0b}
+.metric-label{font-size:14px;color:#61708a}
+.metric-value{font-size:32px;font-weight:bold;color:#4934ce;margin-top:12px}
+.layout{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.5fr);gap:22px}
+h3{margin:0 0 20px;font-size:21px}
+label{display:block;font-weight:bold;margin:17px 0 8px}
+select,input[type=number]{width:100%;padding:13px;border:1px solid #ccd6e7;border-radius:10px;font-size:15px;background:white}
+input[type=range]{width:100%;accent-color:#4934ce}
+.ttl-line{display:flex;justify-content:space-between;align-items:center}
+.check{display:flex;align-items:center;gap:10px;margin:17px 0}
+.check label{margin:0}
+button{border:0;border-radius:10px;padding:13px 16px;font-weight:bold;cursor:pointer;font-size:14px;transition:.15s}
+button:hover{filter:brightness(.95);transform:translateY(-1px)}
+button:disabled{opacity:.6;cursor:wait;transform:none}
+.primary{background:#4934ce;color:white;width:100%;margin-top:9px}
+.secondary{background:#e9edff;color:#3730a3;width:100%;margin-top:9px}
+.orange{background:#fff0df;color:#9a4d00;width:100%;margin-top:9px}
+.reset{background:#eef1f6;color:#35415a;width:100%;margin-top:9px}
+.result-box{border:1px solid #dce4f1;background:#f8faff;padding:19px;border-radius:13px;margin-top:14px}
+.pill{display:inline-block;padding:7px 13px;border-radius:20px;font-size:12px;font-weight:bold;background:#e5eaf2;color:#4b5870}
+.pill.HIT{background:#d8f7e5;color:#137647}
+.pill.MISS{background:#ffead8;color:#a04c08}
+.pill.EXPIRED{background:#fff0bd;color:#855900}
+.pill.BYPASS{background:#e5e7ff;color:#4035b5}
+.result-box h2{margin:12px 0;font-size:25px}
+.detail{display:flex;justify-content:space-between;gap:15px;border-bottom:1px solid #e1e7f0;padding:12px 0;font-size:14px}
+.detail:last-child{border:0}
+.lower{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:22px}
+.bar-row{margin:18px 0}
+.bar-head{display:flex;justify-content:space-between;gap:10px;font-size:14px;margin-bottom:8px}
+.track{height:11px;background:#e9edf5;border-radius:20px;overflow:hidden}
+.fill{height:100%;width:0%;background:linear-gradient(90deg,#5140d5,#3980ff);transition:width .3s}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:12px 7px;border-bottom:1px solid #e8edf5}
+th{color:#63708a}
+.history-wrap{overflow-x:auto}
+.muted{color:#66748d;font-size:14px;line-height:1.6}
+.notice{margin-top:22px;padding:16px;border-radius:12px;background:#fff8e7;color:#7d5a12;font-size:13px;line-height:1.6}
+footer{text-align:center;color:#77839a;padding:24px;font-size:13px}
+@media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}.layout,.lower{grid-template-columns:1fr}}
+@media(max-width:500px){main{padding:16px 12px}header{padding:22px 18px}.metrics{gap:10px}.card{padding:16px}.metric-value{font-size:26px}.hero{padding:22px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ CachePulse</h1>
+  <p>Cloud Application Cache Efficiency | Problem Code: CF-PS-31</p>
+</header>
+
+<main>
+  <section class="hero">
+    <h2>Smart Caching Performance Dashboard</h2>
+    <p>Understand how caching reduces repeated backend operations. Test cache hits, misses, TTL expiry and response time.</p>
+  </section>
+
+  <section class="metrics">
+    <div class="card"><div class="metric-label">Total Requests</div><div class="metric-value" id="total">0</div></div>
+    <div class="card"><div class="metric-label">Backend Operations</div><div class="metric-value" id="backend">0</div></div>
+    <div class="card"><div class="metric-label">Cache Hits</div><div class="metric-value" id="hits">0</div></div>
+    <div class="card"><div class="metric-label">Cache Hit Rate</div><div class="metric-value" id="rate">0%</div></div>
+  </section>
+
+  <section class="layout">
+    <div class="card">
+      <h3>⚙️ Request Settings</h3>
+
+      <label for="dataset">Select Data</label>
+      <select id="dataset">
+        <option value="student:101">Student 101</option>
+        <option value="course:202">Course 202</option>
+        <option value="service:303">Service 303</option>
+      </select>
+
+      <div class="ttl-line">
+        <label for="ttl">Cache TTL (seconds)</label>
+        <strong><span id="ttlValue">5</span>s</strong>
+      </div>
+      <input id="ttl" type="range" min="2" max="60" value="5">
+
+      <div class="check">
+        <input id="cacheEnabled" type="checkbox" checked>
+        <label for="cacheEnabled">Enable Cache</label>
+      </div>
+
+      <button class="primary" id="withoutBtn">Test Without Cache</button>
+      <button class="secondary" id="withBtn">Test With Cache (5 Requests)</button>
+      <button class="orange" id="expiryBtn">Test TTL Expiry</button>
+      <button class="reset" id="resetBtn">↻ Reset Dashboard</button>
+
+      <p class="muted">Tip: use the same data selection for repeated requests to demonstrate cache HIT behaviour.</p>
+    </div>
+
+    <div class="card">
+      <h3>📊 Latest Request Result</h3>
+      <span class="pill" id="status">WAITING</span>
+
+      <div class="result-box">
+        <div class="muted" id="resultLabel">No request yet</div>
+        <h2 id="resultTitle">Your result appears here</h2>
+        <p id="resultMessage">Send a request to begin.</p>
+        <div class="detail"><span>Response Time</span><strong id="responseTime">—</strong></div>
+        <div class="detail"><span>Cache Key</span><strong id="cacheKey">—</strong></div>
+        <div class="detail"><span>Backend Called</span><strong id="backendCalled">—</strong></div>
+        <div class="detail"><span>Backend Operations</span><strong id="backendCount">0</strong></div>
+      </div>
+
+      <h3 style="margin-top:25px">🗄️ Cache Details</h3>
+      <div class="detail"><span>Cached Entries</span><strong id="entries">0</strong></div>
+      <div class="detail"><span>Selected Key Status</span><strong id="keyStatus">EMPTY</strong></div>
+      <div class="detail"><span>Configured TTL</span><strong id="ttlDetail">5 seconds</strong></div>
+    </div>
+  </section>
+
+  <section class="lower">
+    <div class="card">
+      <h3>⚡ Performance Comparison</h3>
+      <p class="muted">Run both tests to compare backend work and average response time.</p>
+
+      <div class="bar-row">
+        <div class="bar-head"><span>Without Cache — Avg. Time</span><strong id="offTime">—</strong></div>
+        <div class="track"><div class="fill" id="offBar"></div></div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-head"><span>With Cache — Avg. Time</span><strong id="onTime">—</strong></div>
+        <div class="track"><div class="fill" id="onBar"></div></div>
+      </div>
+
+      <div class="detail"><span>Without-cache backend calls</span><strong id="offCalls">0</strong></div>
+      <div class="detail"><span>With-cache backend calls</span><strong id="onCalls">0</strong></div>
+      <p class="muted" id="comparisonMessage">Run the two tests to see the comparison.</p>
+    </div>
+
+    <div class="card">
+      <h3>🕘 Recent Activity</h3>
+      <div class="history-wrap">
+        <table>
+          <thead><tr><th>Key</th><th>Status</th><th>Time</th></tr></thead>
+          <tbody id="history">
+            <tr><td colspan="3" class="muted">No activity yet. Send your first request.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="notice">
+    <strong>Prototype notice:</strong> This browser-based prototype simulates backend operations and caching using JavaScript Map. It demonstrates cache efficiency; it is not connected to a real cloud backend.
+  </div>
+</main>
+
+<footer>CachePulse · Cloud Application Cache Efficiency · Team VisionVerse</footer>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+
+const cache = new Map();
+let totalRequests = 0;
+let backendOperations = 0;
+let cacheHits = 0;
+let cacheLookups = 0;
+let historyItems = [];
+let busy = false;
+
+let offStats = null;
+let onStats = null;
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+function currentKey() {
+  return $("dataset").value;
+}
+
+function currentTTL() {
+  return Number($("ttl").value) * 1000;
+}
+
+function updateDashboard() {
+  $("total").textContent = totalRequests;
+  $("backend").textContent = backendOperations;
+  $("hits").textContent = cacheHits;
+  $("rate").textContent = cacheLookups
+    ? Math.round(cacheHits / cacheLookups * 100) + "%"
+    : "0%";
+
+  $("backendCount").textContent = backendOperations;
+  $("entries").textContent = cache.size;
+  $("ttlDetail").textContent = $("ttl").value + " seconds";
+
+  const key = currentKey();
+  const entry = cache.get(key);
+
+  if (!entry) {
+    $("keyStatus").textContent = "EMPTY";
+  } else if (Date.now() >= entry.expiresAt) {
+    $("keyStatus").textContent = "EXPIRED";
+  } else {
+    $("keyStatus").textContent = "CACHED";
+  }
+
+  $("history").innerHTML = "";
+
+  if (historyItems.length === 0) {
+    const row = $("history").insertRow();
+    const cell = row.insertCell();
+    cell.colSpan = 3;
+    cell.className = "muted";
+    cell.textContent = "No activity yet. Send your first request.";
+    return;
+  }
+
+  historyItems.slice(0, 10).forEach(item => {
+    const row = $("history").insertRow();
+    const c1 = row.insertCell();
+    const c2 = row.insertCell();
+    const c3 = row.insertCell();
+
+    c1.textContent = item.key;
+    c2.textContent = item.status;
+    c3.textContent = item.time + " ms";
+
+    c2.style.fontWeight = "bold";
+    c2.style.color = item.status === "HIT" ? "#137647"
+      : item.status === "MISS" ? "#a04c08"
+      : item.status === "EXPIRED" ? "#855900" : "#4035b5";
+  });
+}
+
+function showResult(result) {
+  const badge = $("status");
+  badge.textContent = result.status;
+  badge.className = "pill " + result.status;
+
+  $("resultLabel").textContent = "Request completed";
+  $("resultTitle").textContent = result.status === "HIT"
+    ? "Cache hit! ⚡"
+    : result.status === "MISS"
+      ? "Cache miss"
+      : result.status === "EXPIRED"
+        ? "Cache expired"
+        : "Cache bypassed";
+
+  $("resultMessage").textContent = result.message;
+  $("responseTime").textContent = result.time + " ms";
+  $("cacheKey").textContent = result.key;
+  $("backendCalled").textContent = result.backendCalled ? "Yes" : "No";
+}
+
+async function sendRequest(forceBypass = false) {
+  const key = currentKey();
+  const enabled = $("cacheEnabled").checked && !forceBypass;
+  const started = performance.now();
+
+  totalRequests++;
+
+  let status;
+  let backendCalled = false;
+  let message;
+
+  if (!enabled) {
+    status = "BYPASS";
+    backendCalled = true;
+    backendOperations++;
+
+    // Simulate a backend response.
+    await sleep(120);
+
+    message = "Cache disabled. Data was fetched from the simulated backend.";
+  } else {
+    cacheLookups++;
+
+    const entry = cache.get(key);
+
+    if (entry && Date.now() < entry.expiresAt) {
+      status = "HIT";
+      cacheHits++;
+      message = "Valid cached data returned. No backend call was needed.";
+    } else {
+      if (entry) {
+        status = "EXPIRED";
+        cache.delete(key);
+      } else {
+        status = "MISS";
+      }
+
+      backendCalled = true;
+      backendOperations++;
+
+      await sleep(120);
+
+      cache.set(key, {
+        data: { key, value: "Simulated data for " + key },
+        expiresAt: Date.now() + currentTTL()
+      });
+
+      message = status === "EXPIRED"
+        ? "The cached entry expired. Fresh data was fetched and cached."
+        : "No valid cached entry existed. Fresh data was fetched and cached.";
+    }
+  }
+
+  const elapsed = Math.max(0.01, performance.now() - started);
+  const result = {
+    key,
+    status,
+    backendCalled,
+    time: elapsed.toFixed(2),
+    message
+  };
+
+  historyItems.unshift(result);
+  historyItems = historyItems.slice(0, 30);
+
+  showResult(result);
+  updateDashboard();
+
+  return { ...result, numericTime: elapsed };
+}
+
+function setBusy(value) {
+  busy = value;
+  ["withoutBtn", "withBtn", "expiryBtn", "resetBtn"].forEach(id => {
+    $(id).disabled = value;
+  });
+}
+
+async function runWithoutCache() {
+  if (busy) return;
+  setBusy(true);
+
+  try {
+    const times = [];
+    const callsBefore = backendOperations;
+
+    for (let i = 0; i < 5; i++) {
+      const result = await sendRequest(true);
+      times.push(result.numericTime);
+    }
+
+    offStats = {
+      avg: times.reduce((a, b) => a + b, 0) / times.length,
+      calls: backendOperations - callsBefore
+    };
+
+    updateComparison();
+  } catch (error) {
+    reportError(error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function runWithCache() {
+  if (busy) return;
+  setBusy(true);
+
+  try {
+    // Start with a cold cache for a predictable demonstration.
+    cache.delete(currentKey());
+    updateDashboard();
+
+    const times = [];
+    const callsBefore = backendOperations;
+
+    for (let i = 0; i < 5; i++) {
+      const result = await sendRequest(false);
+      times.push(result.numericTime);
+    }
+
+    onStats = {
+      avg: times.reduce((a, b) => a + b, 0) / times.length,
+      calls: backendOperations - callsBefore
+    };
+
+    updateComparison();
+  } catch (error) {
+    reportError(error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function runExpiryTest() {
+  if (busy) return;
+  setBusy(true);
+
+  try {
+    const key = currentKey();
+    cache.delete(key);
+    updateDashboard();
+
+    await sendRequest(false);
+
+    $("resultMessage").textContent =
+      "Initial request completed. Waiting for the TTL to expire...";
+
+    await sleep(currentTTL() + 150);
+
+    if (busy) {
+      await sendRequest(false);
+    }
+  } catch (error) {
+    reportError(error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function updateComparison() {
+  if (offStats) {
+    $("offTime").textContent = offStats.avg.toFixed(2) + " ms";
+    $("offCalls").textContent = offStats.calls;
+  }
+
+  if (onStats) {
+    $("onTime").textContent = onStats.avg.toFixed(2) + " ms";
+    $("onCalls").textContent = onStats.calls;
+  }
+
+  if (offStats && onStats) {
+    const maxTime = Math.max(offStats.avg, onStats.avg, 1);
+
+    $("offBar").style.width = (offStats.avg / maxTime * 100) + "%";
+    $("onBar").style.width = (onStats.avg / maxTime * 100) + "%";
+
+    if (onStats.avg < offStats.avg) {
+      $("comparisonMessage").textContent =
+        "In this run, cached requests had a lower average response time. Results vary between runs.";
+    } else {
+      $("comparisonMessage").textContent =
+        "Comparison updated. Timing can vary, but cache hits avoid the simulated backend delay.";
+    }
+  }
+}
+
+function reportError(error) {
+  console.error("CachePulse error:", error);
+  $("status").textContent = "ERROR";
+  $("status").className = "pill";
+  $("resultTitle").textContent = "Something went wrong";
+  $("resultMessage").textContent = error.message || "Unknown error";
+}
+
+function resetDashboard() {
+  if (busy) return;
+
+  cache.clear();
+  totalRequests = 0;
+  backendOperations = 0;
+  cacheHits = 0;
+  cacheLookups = 0;
+  historyItems = [];
+  offStats = null;
+  onStats = null;
+
+  $("status").textContent = "WAITING";
+  $("status").className = "pill";
+  $("resultLabel").textContent = "No request yet";
+  $("resultTitle").textContent = "Your result appears here";
+  $("resultMessage").textContent = "Send a request to begin.";
+  $("responseTime").textContent = "—";
+  $("cacheKey").textContent = "—";
+  $("backendCalled").textContent = "—";
+
+  $("offTime").textContent = "—";
+  $("onTime").textContent = "—";
+  $("offCalls").textContent = "0";
+  $("onCalls").textContent = "0";
+  $("offBar").style.width = "0%";
+  $("onBar").style.width = "0%";
+  $("comparisonMessage").textContent = "Run the two tests to see the comparison.";
+
+  updateDashboard();
+}
+
+$("withoutBtn").addEventListener("click", runWithoutCache);
+$("withBtn").addEventListener("click", runWithCache);
+$("expiryBtn").addEventListener("click", runExpiryTest);
+$("resetBtn").addEventListener("click", resetDashboard);
+
+$("ttl").addEventListener("input", () => {
+  $("ttlValue").textContent = $("ttl").value;
+  updateDashboard();
+});
+
+$("dataset").addEventListener("change", updateDashboard);
+
+updateDashboard();
+</script>
+</body>
+</html>
